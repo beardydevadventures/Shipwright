@@ -11,6 +11,7 @@ enum class FeatureState : uint8_t {
 };
 
 struct ActorIdentity {
+    uint32_t coOpId = 0;
     int16_t sceneId = -1;
     int16_t roomId = -1;
     int16_t actorId = -1;
