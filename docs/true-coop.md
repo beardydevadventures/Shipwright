@@ -58,8 +58,11 @@ Network > True Co-op > Enable True Co-op Events
 
 ## Enemy identity
 
+A local generated `coOpId` is now assigned to enemy/boss actors through `GameInteractor::OnActorSpawn`.
+
 Each event currently includes:
 
+- generated co-op id
 - scene id
 - room id
 - actor id/type
@@ -69,7 +72,9 @@ Each event currently includes:
 - position
 - rotation
 
-This is a practical first pass, not a final network-safe identity. The likely final identity should be generated at spawn time and remain stable across clients.
+The generated `coOpId` is stable for the lifetime of the local actor instance and is reused across damage, kill, transform, and state events.
+
+This is still not the final network identity. For real multiplayer, the host should assign or confirm the co-op id and broadcast the spawn/identity mapping to clients.
 
 ## Enemy damage event shape
 
@@ -157,16 +162,17 @@ This should avoid enemies fighting their own alternate timelines across clients.
 1. Add the opt-in menu toggle.
 2. Hook `Actor_Kill` through `GameInteractor::OnActorKill` for death events.
 3. Track enemy HP changes through `GameInteractor::OnActorUpdate`.
-4. Emit `EnemyDamageEvent` when enemy HP drops.
-5. Emit throttled `EnemyTransformEvent` when enemy position/rotation changes.
-6. Emit minimal `EnemyStateEvent` when basic actor state changes.
-7. Log events only when true-coop debug mode is enabled.
-8. Add a fake local receive/apply path for testing authoritative state updates without networking.
-9. Add a network message later.
-10. Let host/server own enemy HP.
-11. Broadcast authoritative HP/death state to clients.
-12. Add host-owned position/rotation sync.
-13. Add minimal host-owned AI/action sync only if position/rotation alone is not enough.
+4. Assign local generated `coOpId` values through `GameInteractor::OnActorSpawn`.
+5. Emit `EnemyDamageEvent` when enemy HP drops.
+6. Emit throttled `EnemyTransformEvent` when enemy position/rotation changes.
+7. Emit minimal `EnemyStateEvent` when basic actor state changes.
+8. Log events only when true-coop debug mode is enabled.
+9. Add a fake local receive/apply path for testing authoritative state updates without networking.
+10. Add a network message later.
+11. Let host/server own enemy HP.
+12. Broadcast authoritative HP/death state to clients.
+13. Add host-owned position/rotation sync.
+14. Add minimal host-owned AI/action sync only if position/rotation alone is not enough.
 
 ## How to test locally
 
@@ -174,6 +180,7 @@ This should avoid enemies fighting their own alternate timelines across clients.
 
 ```bash
 git checkout true-co-op
+git pull
 ```
 
 2. Build Shipwright normally using the repository's existing build flow for your platform.
@@ -209,31 +216,41 @@ EnemyDamageEvent
 EnemyKillEvent
 ```
 
-8. Hit an enemy once.
+8. Confirm each enemy has a generated id in logs:
+
+```text
+coOpId=1
+coOpId=2
+coOpId=3
+```
+
+The same enemy should keep the same `coOpId` across its state, transform, damage, and kill logs.
+
+9. Hit an enemy once.
 
 Expected result:
 
 ```text
-[TrueCoop] EnemyDamageEvent ... hpBefore=... damage=... hpAfter=...
+[TrueCoop] EnemyDamageEvent ... coOpId=... hpBefore=... damage=... hpAfter=...
 ```
 
-9. Kill the enemy.
+10. Kill the enemy.
 
 Expected result:
 
 ```text
-[TrueCoop] EnemyKillEvent ... hpAtKill=0
+[TrueCoop] EnemyKillEvent ... coOpId=... hpAtKill=0
 ```
 
-10. Let a moving enemy move around.
+11. Let a moving enemy move around.
 
 Expected result:
 
 ```text
-[TrueCoop] EnemyTransformEvent ... pos=(...) rot=(...) velocity=(...)
+[TrueCoop] EnemyTransformEvent ... coOpId=... pos=(...) rot=(...) velocity=(...)
 ```
 
-11. Toggle `Enable True Co-op Events` off and repeat.
+12. Toggle `Enable True Co-op Events` off and repeat.
 
 Expected result:
 
@@ -245,7 +262,8 @@ No [TrueCoop] event logs should appear.
 
 - This is still local event detection, not real multiplayer network sync.
 - Events are not sent to another client yet.
-- Enemy identity is improved but not final.
+- The generated `coOpId` is local-only.
+- Host/client spawn identity mapping is not implemented yet.
 - Transform/state events are debug-level and may need throttling/filters before real networking.
 - Item drops, room clear, switches, doors, and save flags are not synced yet.
 - Full AI state is not synced yet; the intended final model is host-owned enemy AI.
@@ -261,7 +279,7 @@ No [TrueCoop] event logs should appear.
 
 ## Known unknowns
 
-- Best stable identity for actor instances across clients.
-- Whether room-local actor indexes are stable enough or need a generated co-op id.
+- How host/client spawn identity mapping should be represented.
+- Whether room-local actor indexes are stable enough or need host-issued ids only.
 - Which enemy action/AI fields need to be synced after position/rotation.
 - How much of Anchor should be reused versus kept separate.
