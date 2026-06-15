@@ -22,7 +22,8 @@ void SetFeatureState(FeatureState state) {
 
 std::string DescribeActorIdentity(const ActorIdentity& identity) {
     std::ostringstream stream;
-    stream << "scene=" << identity.sceneId
+    stream << "coOpId=" << identity.coOpId
+           << " scene=" << identity.sceneId
            << " room=" << identity.roomId
            << " actor=" << identity.actorId
            << " category=" << identity.actorCategory
