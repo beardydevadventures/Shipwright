@@ -12,6 +12,12 @@ extern PlayState* gPlayState;
 
 namespace {
 
+#define CVAR_TRUE_COOP_ENABLED CVAR_REMOTE("TrueCoop.Enabled")
+
+bool TrueCoop_IsEnabled() {
+    return CVarGetInteger(CVAR_TRUE_COOP_ENABLED, 0) != 0;
+}
+
 bool TrueCoop_IsSyncCandidateActor(Actor* actor) {
     if (actor == nullptr) {
         return false;
@@ -22,6 +28,8 @@ bool TrueCoop_IsSyncCandidateActor(Actor* actor) {
 
 void TrueCoop_LogActorKill(void* actorPtr) {
     Actor* actor = static_cast<Actor*>(actorPtr);
+
+    TrueCoop_SetDebugEnabled(TrueCoop_IsEnabled());
 
     if (!TrueCoop_IsDebugEnabled() || !TrueCoop_IsSyncCandidateActor(actor)) {
         return;
@@ -50,4 +58,4 @@ void RegisterTrueCoopHooks() {
 
 } // namespace
 
-static RegisterShipInitFunc initFunc(RegisterTrueCoopHooks);
+static RegisterShipInitFunc initFunc(RegisterTrueCoopHooks, { CVAR_TRUE_COOP_ENABLED });
