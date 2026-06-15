@@ -16,6 +16,76 @@ Enemy kill sync is also included as a safety net:
 
 Networking, remote players, save sync, boss sync, cutscene sync, dungeon state sync, and item drop sync are intentionally out of scope for the first pass.
 
+## High-level co-op roadmap
+
+### Phase 1: Enemy sync foundation
+
+Goal: make normal enemy combat deterministic enough for two players.
+
+Steps:
+
+1. Assign a local id when an enemy/boss actor spawns.
+2. Add host/shared id mapping.
+3. Emit enemy damage events.
+4. Emit enemy kill/removal events.
+5. Emit enemy transform events.
+6. Emit minimal enemy state events.
+7. Wire real network messages for identity, damage, kill, transform, and state.
+8. Make the host/session owner authoritative for enemy HP, death, position, rotation, and minimal action state.
+
+### Phase 2: Enemy consequences
+
+Goal: make the world agree after enemies are defeated.
+
+Steps:
+
+1. Sync item drops spawned by enemies.
+2. Sync item pickup/collection state.
+3. Sync enemy clear flags.
+4. Sync room clear state.
+5. Sync doors/unlocks triggered by enemy clear state.
+6. Sync reward/chest spawn events caused by enemy defeat or room clear.
+
+### Phase 3: General item/world object sync
+
+Goal: make non-enemy interactive objects agree between players.
+
+Steps:
+
+1. Identify pickup actors and collectible actors.
+2. Track item spawn/despawn events.
+3. Track item collected events.
+4. Track pots, crates, bushes, rocks, and similar destructible object state.
+5. Track switch state where it affects shared progress.
+6. Track chest opened state.
+7. Track door opened/unlocked state.
+
+### Phase 4: Scripted events and flags
+
+Goal: make scripted progress reliable without trying to sync every cutscene frame.
+
+Steps:
+
+1. Identify important event flags and switch flags.
+2. Sync only gameplay-impacting flag changes at first.
+3. Avoid syncing purely visual or camera-only scripted events early.
+4. Sync cutscene-triggered world changes after the cutscene completes.
+5. Add safeguards so one client cannot repeatedly retrigger a completed event.
+6. Add per-scene allowlists for risky scripted events.
+
+### Phase 5: Bosses, dungeons, and save progression
+
+Goal: handle high-risk progression after normal rooms are reliable.
+
+Steps:
+
+1. Treat bosses separately from normal enemies.
+2. Sync boss HP/death only after normal enemy sync is stable.
+3. Sync dungeon-specific switches and flags gradually.
+4. Sync major item rewards.
+5. Sync dungeon completion state.
+6. Decide what belongs in shared session state versus each player's save file.
+
 ## Added scaffold
 
 The initial scaffold lives in:
@@ -194,6 +264,7 @@ This should avoid enemies fighting their own alternate timelines across clients.
 13. Broadcast authoritative HP/death state to clients.
 14. Add host-owned position/rotation sync.
 15. Add minimal host-owned AI/action sync only if position/rotation alone is not enough.
+16. After enemy sync is stable, move to item drops, pickups, room flags, and scripted event state.
 
 ## How to test locally
 
@@ -288,6 +359,7 @@ No [TrueCoop] event logs should appear.
 - The local/shared id map exists, but the actual network message is not wired yet.
 - Transform/state events are debug-level and may need throttling/filters before real networking.
 - Item drops, room clear, switches, doors, and save flags are not synced yet.
+- Scripted events and cutscene-triggered world changes are not synced yet.
 - Full AI state is not synced yet; the intended final model is host-owned enemy AI.
 
 ## Rules for this branch
@@ -296,6 +368,7 @@ No [TrueCoop] event logs should appear.
 - Keep the feature behind explicit opt-in/debug state until proven stable.
 - Health sync remains the priority; kill sync is the drift-correction safety net.
 - Host should own enemy AI/state long term.
+- Do normal enemies first, then enemy consequences, then general items/world objects, then scripted events.
 - Avoid boss, dungeon, cutscene, save-file, and item-drop sync until normal enemy damage is reliable.
 - Prefer small reviewable commits.
 
