@@ -2,6 +2,39 @@
 
 #include "TrueCoop.h"
 
+namespace {
+
+TrueCoop::ActorIdentity BuildIdentity(
+    int16_t sceneId,
+    int16_t roomId,
+    int16_t actorId,
+    int16_t actorCategory,
+    int16_t actorParams,
+    int16_t actorListIndex,
+    float positionX,
+    float positionY,
+    float positionZ,
+    int16_t rotationX,
+    int16_t rotationY,
+    int16_t rotationZ) {
+    TrueCoop::ActorIdentity identity;
+    identity.sceneId = sceneId;
+    identity.roomId = roomId;
+    identity.actorId = actorId;
+    identity.actorCategory = actorCategory;
+    identity.actorParams = actorParams;
+    identity.actorListIndex = actorListIndex;
+    identity.positionX = positionX;
+    identity.positionY = positionY;
+    identity.positionZ = positionZ;
+    identity.rotationX = rotationX;
+    identity.rotationY = rotationY;
+    identity.rotationZ = rotationZ;
+    return identity;
+}
+
+} // namespace
+
 void TrueCoop_SetDebugEnabled(bool enabled) {
     TrueCoop::SetFeatureState(enabled ? TrueCoop::FeatureState::DebugOnly : TrueCoop::FeatureState::Disabled);
 }
@@ -15,6 +48,8 @@ void TrueCoop_LogEnemyDamageEventC(
     int16_t roomId,
     int16_t actorId,
     int16_t actorCategory,
+    int16_t actorParams,
+    int16_t actorListIndex,
     float positionX,
     float positionY,
     float positionZ,
@@ -26,16 +61,8 @@ void TrueCoop_LogEnemyDamageEventC(
     int16_t hpAfter,
     bool died) {
     TrueCoop::EnemyDamageEvent event;
-    event.enemy.sceneId = sceneId;
-    event.enemy.roomId = roomId;
-    event.enemy.actorId = actorId;
-    event.enemy.actorCategory = actorCategory;
-    event.enemy.positionX = positionX;
-    event.enemy.positionY = positionY;
-    event.enemy.positionZ = positionZ;
-    event.enemy.rotationX = rotationX;
-    event.enemy.rotationY = rotationY;
-    event.enemy.rotationZ = rotationZ;
+    event.enemy = BuildIdentity(sceneId, roomId, actorId, actorCategory, actorParams, actorListIndex, positionX, positionY,
+                                positionZ, rotationX, rotationY, rotationZ);
     event.hpBefore = hpBefore;
     event.damageAmount = damageAmount;
     event.hpAfter = hpAfter;
@@ -49,6 +76,8 @@ void TrueCoop_LogEnemyKillEventC(
     int16_t roomId,
     int16_t actorId,
     int16_t actorCategory,
+    int16_t actorParams,
+    int16_t actorListIndex,
     float positionX,
     float positionY,
     float positionZ,
@@ -57,17 +86,67 @@ void TrueCoop_LogEnemyKillEventC(
     int16_t rotationZ,
     int16_t hpAtKill) {
     TrueCoop::EnemyKillEvent event;
-    event.enemy.sceneId = sceneId;
-    event.enemy.roomId = roomId;
-    event.enemy.actorId = actorId;
-    event.enemy.actorCategory = actorCategory;
-    event.enemy.positionX = positionX;
-    event.enemy.positionY = positionY;
-    event.enemy.positionZ = positionZ;
-    event.enemy.rotationX = rotationX;
-    event.enemy.rotationY = rotationY;
-    event.enemy.rotationZ = rotationZ;
+    event.enemy = BuildIdentity(sceneId, roomId, actorId, actorCategory, actorParams, actorListIndex, positionX, positionY,
+                                positionZ, rotationX, rotationY, rotationZ);
     event.hpAtKill = hpAtKill;
 
     TrueCoop::LogEnemyKillEvent(event);
+}
+
+void TrueCoop_LogEnemyTransformEventC(
+    int16_t sceneId,
+    int16_t roomId,
+    int16_t actorId,
+    int16_t actorCategory,
+    int16_t actorParams,
+    int16_t actorListIndex,
+    float positionX,
+    float positionY,
+    float positionZ,
+    int16_t rotationX,
+    int16_t rotationY,
+    int16_t rotationZ,
+    float velocityX,
+    float velocityY,
+    float velocityZ,
+    float speedXZ) {
+    TrueCoop::EnemyTransformEvent event;
+    event.enemy = BuildIdentity(sceneId, roomId, actorId, actorCategory, actorParams, actorListIndex, positionX, positionY,
+                                positionZ, rotationX, rotationY, rotationZ);
+    event.velocityX = velocityX;
+    event.velocityY = velocityY;
+    event.velocityZ = velocityZ;
+    event.speedXZ = speedXZ;
+
+    TrueCoop::LogEnemyTransformEvent(event);
+}
+
+void TrueCoop_LogEnemyStateEventC(
+    int16_t sceneId,
+    int16_t roomId,
+    int16_t actorId,
+    int16_t actorCategory,
+    int16_t actorParams,
+    int16_t actorListIndex,
+    float positionX,
+    float positionY,
+    float positionZ,
+    int16_t rotationX,
+    int16_t rotationY,
+    int16_t rotationZ,
+    int16_t health,
+    int16_t params,
+    int16_t freezeTimer,
+    int16_t colorFilterTimer,
+    uint16_t bgCheckFlags) {
+    TrueCoop::EnemyStateEvent event;
+    event.enemy = BuildIdentity(sceneId, roomId, actorId, actorCategory, actorParams, actorListIndex, positionX, positionY,
+                                positionZ, rotationX, rotationY, rotationZ);
+    event.health = health;
+    event.params = params;
+    event.freezeTimer = freezeTimer;
+    event.colorFilterTimer = colorFilterTimer;
+    event.bgCheckFlags = bgCheckFlags;
+
+    TrueCoop::LogEnemyStateEvent(event);
 }
