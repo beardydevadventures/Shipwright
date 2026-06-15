@@ -11,6 +11,7 @@ void TrueCoop_SetDebugEnabled(bool enabled);
 bool TrueCoop_IsDebugEnabled(void);
 
 void TrueCoop_LogEnemyDamageEventC(
+    uint32_t coOpId,
     int16_t sceneId,
     int16_t roomId,
     int16_t actorId,
@@ -29,6 +30,7 @@ void TrueCoop_LogEnemyDamageEventC(
     bool died);
 
 void TrueCoop_LogEnemyKillEventC(
+    uint32_t coOpId,
     int16_t sceneId,
     int16_t roomId,
     int16_t actorId,
@@ -44,6 +46,7 @@ void TrueCoop_LogEnemyKillEventC(
     int16_t hpAtKill);
 
 void TrueCoop_LogEnemyTransformEventC(
+    uint32_t coOpId,
     int16_t sceneId,
     int16_t roomId,
     int16_t actorId,
@@ -62,6 +65,7 @@ void TrueCoop_LogEnemyTransformEventC(
     float speedXZ);
 
 void TrueCoop_LogEnemyStateEventC(
+    uint32_t coOpId,
     int16_t sceneId,
     int16_t roomId,
     int16_t actorId,
