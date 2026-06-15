@@ -46,7 +46,23 @@ Steps:
 5. Sync doors/unlocks triggered by enemy clear state.
 6. Sync reward/chest spawn events caused by enemy defeat or room clear.
 
-### Phase 3: General item/world object sync
+### Phase 3: Blocking NPCs and progression gates
+
+Goal: make shared progression blockers agree between players.
+
+Mido is the main early example. If one player meets the requirements and Mido moves, he should move or be considered moved for the other players too.
+
+Steps:
+
+1. Identify blocking NPCs and progression gate actors.
+2. Track the condition that opens the gate, not only the actor transform.
+3. Sync the resulting gate state, for example blocked, unblocked, moved, hidden, disabled, or conversation-complete.
+4. Prefer syncing the completed progression state over trying to live-sync every NPC animation frame.
+5. Add per-scene allowlists for special NPC blockers such as Mido.
+6. Make the host/session owner authoritative for the final gate state.
+7. Ensure late-joining players receive the current gate state when entering the scene.
+
+### Phase 4: General item/world object sync
 
 Goal: make non-enemy interactive objects agree between players.
 
@@ -60,7 +76,7 @@ Steps:
 6. Track chest opened state.
 7. Track door opened/unlocked state.
 
-### Phase 4: Scripted events and flags
+### Phase 5: Scripted events and flags
 
 Goal: make scripted progress reliable without trying to sync every cutscene frame.
 
@@ -73,7 +89,7 @@ Steps:
 5. Add safeguards so one client cannot repeatedly retrigger a completed event.
 6. Add per-scene allowlists for risky scripted events.
 
-### Phase 5: Bosses, dungeons, and save progression
+### Phase 6: Bosses, dungeons, and save progression
 
 Goal: handle high-risk progression after normal rooms are reliable.
 
@@ -247,6 +263,20 @@ The host should own enemy AI and enemy state. Clients should mostly send player 
 
 This should avoid enemies fighting their own alternate timelines across clients.
 
+## Blocking NPC and gate sync direction
+
+Some progression blockers are not enemies. Mido is the early example.
+
+For these actors, the desired sync is not continuous combat state. The desired sync is the progression result:
+
+- gate is still blocking
+- gate has been opened
+- NPC has moved
+- NPC should no longer block collision
+- conversation or requirement has been completed
+
+The host/session owner should own this final gate state. Clients should apply the host gate state when entering the scene or when the state changes.
+
 ## MVP path
 
 1. Add the opt-in menu toggle.
@@ -264,7 +294,7 @@ This should avoid enemies fighting their own alternate timelines across clients.
 13. Broadcast authoritative HP/death state to clients.
 14. Add host-owned position/rotation sync.
 15. Add minimal host-owned AI/action sync only if position/rotation alone is not enough.
-16. After enemy sync is stable, move to item drops, pickups, room flags, and scripted event state.
+16. After enemy sync is stable, move to item drops, pickups, room flags, blocking NPCs, and scripted event state.
 
 ## How to test locally
 
@@ -359,6 +389,7 @@ No [TrueCoop] event logs should appear.
 - The local/shared id map exists, but the actual network message is not wired yet.
 - Transform/state events are debug-level and may need throttling/filters before real networking.
 - Item drops, room clear, switches, doors, and save flags are not synced yet.
+- Blocking NPCs and progression gates such as Mido are not synced yet.
 - Scripted events and cutscene-triggered world changes are not synced yet.
 - Full AI state is not synced yet; the intended final model is host-owned enemy AI.
 
@@ -368,7 +399,7 @@ No [TrueCoop] event logs should appear.
 - Keep the feature behind explicit opt-in/debug state until proven stable.
 - Health sync remains the priority; kill sync is the drift-correction safety net.
 - Host should own enemy AI/state long term.
-- Do normal enemies first, then enemy consequences, then general items/world objects, then scripted events.
+- Do normal enemies first, then enemy consequences, then blocking NPCs/progression gates, then general items/world objects, then scripted events.
 - Avoid boss, dungeon, cutscene, save-file, and item-drop sync until normal enemy damage is reliable.
 - Prefer small reviewable commits.
 
@@ -377,4 +408,5 @@ No [TrueCoop] event logs should appear.
 - Which existing network path should carry the identity message.
 - Whether room-local actor indexes are stable enough or host-issued ids only should be used.
 - Which enemy action/AI fields need to be synced after position/rotation.
+- Which NPCs and scene gates need explicit allowlist handling after Mido.
 - How much of Anchor should be reused versus kept separate.
