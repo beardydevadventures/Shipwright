@@ -41,6 +41,13 @@ std::string DescribeEnemyDamageEvent(const EnemyDamageEvent& event) {
     return stream.str();
 }
 
+std::string DescribeEnemyKillEvent(const EnemyKillEvent& event) {
+    std::ostringstream stream;
+    stream << "enemy{" << DescribeActorIdentity(event.enemy) << "}"
+           << " hpAtKill=" << event.hpAtKill;
+    return stream.str();
+}
+
 void LogEnemyDamageEvent(const EnemyDamageEvent& event) {
     if (!IsDebugEnabled()) {
         return;
@@ -52,6 +59,19 @@ void LogEnemyDamageEvent(const EnemyDamageEvent& event) {
     // TODO(true-coop): Send this damage event to a host/server once a network layer exists.
     // TODO(true-coop): Let the host validate the actor identity and damage amount.
     // TODO(true-coop): Broadcast the authoritative enemy HP/death state back to every client.
+}
+
+void LogEnemyKillEvent(const EnemyKillEvent& event) {
+    if (!IsDebugEnabled()) {
+        return;
+    }
+
+    const std::string description = DescribeEnemyKillEvent(event);
+    std::printf("[TrueCoop] EnemyKillEvent %s\n", description.c_str());
+
+    // TODO(true-coop): Send this kill event to a host/server once a network layer exists.
+    // TODO(true-coop): Treat host-authoritative enemy kill as a forced removal on every client.
+    // TODO(true-coop): Use this as a safety net when enemy HP/AI state drifts between clients.
 }
 
 } // namespace TrueCoop
