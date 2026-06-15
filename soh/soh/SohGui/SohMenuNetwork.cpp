@@ -171,6 +171,25 @@ void SohMenu::AddMenuNetwork() {
                                            "rooms\", so they don't need to be killed to complete these rooms."));
     path.sidebarName = "Anchor";
     AddSidebarEntry("Network", path.sidebarName, 2);
+
+    path.sidebarName = "True Co-op";
+    AddSidebarEntry("Network", path.sidebarName, 2);
+    path.column = SECTION_COLUMN_1;
+
+    AddWidget(path, "Prototype", WIDGET_SEPARATOR_TEXT);
+    AddWidget(path, "Enable True Co-op Events", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_REMOTE("TrueCoop.Enabled"))
+        .RaceDisable(true)
+        .Options(CheckboxOptions().DefaultValue(false).Tooltip(
+            "Enables prototype true co-op debug events for enemy HP and death sync.\n\n"
+            "Current branch behaviour logs host-authoritative enemy kill events. The same toggle will also gate "
+            "enemy health sync once the Actor_ApplyDamage hook is added."));
+    AddWidget(path,
+              "Prototype status:\n"
+              "- Enemy kill events are hooked through OnActorKill.\n"
+              "- Enemy HP/damage events are planned next through Actor_ApplyDamage.\n"
+              "- No real network broadcast is enabled yet.",
+              WIDGET_TEXT);
 }
 
 } // namespace SohGui
