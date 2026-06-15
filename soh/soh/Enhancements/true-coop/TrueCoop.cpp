@@ -2,10 +2,20 @@
 
 #include <cstdio>
 #include <sstream>
+#include <unordered_map>
 
 namespace TrueCoop {
 namespace {
 FeatureState gFeatureState = FeatureState::Disabled;
+uint32_t gNextLocalId = 1;
+
+struct EnemyIdRecord {
+    uint32_t localId = 0;
+    uint32_t sharedId = 0;
+    EnemyIdentityDescriptor descriptor;
+};
+
+std::unordered_map<uint64_t, EnemyIdRecord> gEnemyIdRecords;
 }
 
 FeatureState GetFeatureState() {
@@ -20,6 +30,52 @@ void SetFeatureState(FeatureState state) {
     gFeatureState = state;
 }
 
+uint32_t AssignLocalId(uint64_t actorKey, const EnemyIdentityDescriptor& descriptor) {
+    auto it = gEnemyIdRecords.find(actorKey);
+    if (it != gEnemyIdRecords.end()) {
+        return it->second.localId;
+    }
+
+    EnemyIdRecord record;
+    record.localId = gNextLocalId++;
+    record.descriptor = descriptor;
+    gEnemyIdRecords[actorKey] = record;
+    return record.localId;
+}
+
+uint32_t GetLocalId(uint64_t actorKey) {
+    auto it = gEnemyIdRecords.find(actorKey);
+    return it != gEnemyIdRecords.end() ? it->second.localId : 0;
+}
+
+uint32_t GetSharedId(uint64_t actorKey) {
+    auto it = gEnemyIdRecords.find(actorKey);
+    if (it == gEnemyIdRecords.end()) {
+        return 0;
+    }
+
+    return it->second.sharedId != 0 ? it->second.sharedId : it->second.localId;
+}
+
+uint32_t SetSharedId(uint64_t actorKey, uint32_t sharedId) {
+    auto it = gEnemyIdRecords.find(actorKey);
+    if (it == gEnemyIdRecords.end()) {
+        return 0;
+    }
+
+    it->second.sharedId = sharedId;
+    return sharedId;
+}
+
+bool HasSharedId(uint64_t actorKey) {
+    auto it = gEnemyIdRecords.find(actorKey);
+    return it != gEnemyIdRecords.end() && it->second.sharedId != 0;
+}
+
+void ReleaseId(uint64_t actorKey) {
+    gEnemyIdRecords.erase(actorKey);
+}
+
 std::string DescribeActorIdentity(const ActorIdentity& identity) {
     std::ostringstream stream;
     stream << "coOpId=" << identity.coOpId
@@ -31,6 +87,19 @@ std::string DescribeActorIdentity(const ActorIdentity& identity) {
            << " listIndex=" << identity.actorListIndex
            << " pos=(" << identity.positionX << ", " << identity.positionY << ", " << identity.positionZ << ")"
            << " rot=(" << identity.rotationX << ", " << identity.rotationY << ", " << identity.rotationZ << ")";
+    return stream.str();
+}
+
+std::string DescribeEnemyIdentityDescriptor(const EnemyIdentityDescriptor& descriptor) {
+    std::ostringstream stream;
+    stream << "scene=" << descriptor.sceneId
+           << " room=" << descriptor.roomId
+           << " actor=" << descriptor.actorId
+           << " category=" << descriptor.actorCategory
+           << " params=" << descriptor.actorParams
+           << " listIndex=" << descriptor.actorListIndex
+           << " spawnPos=(" << descriptor.spawnPositionX << ", " << descriptor.spawnPositionY << ", "
+           << descriptor.spawnPositionZ << ")";
     return stream.str();
 }
 
@@ -68,6 +137,25 @@ std::string DescribeEnemyStateEvent(const EnemyStateEvent& event) {
            << " colorFilterTimer=" << event.colorFilterTimer
            << " bgCheckFlags=" << event.bgCheckFlags;
     return stream.str();
+}
+
+void LogEnemyIdentityRequest(uint64_t actorKey, uint32_t localId, const EnemyIdentityDescriptor& descriptor) {
+    if (!IsDebugEnabled()) {
+        return;
+    }
+
+    std::printf("[TrueCoop] EnemyIdentityRequest localId=%u %s\n", localId,
+                DescribeEnemyIdentityDescriptor(descriptor).c_str());
+}
+
+void LogEnemyIdentityMapping(uint64_t actorKey, uint32_t localId, uint32_t sharedId,
+                             const EnemyIdentityDescriptor& descriptor) {
+    if (!IsDebugEnabled()) {
+        return;
+    }
+
+    std::printf("[TrueCoop] EnemyIdentityMapping localId=%u sharedId=%u %s\n", localId, sharedId,
+                DescribeEnemyIdentityDescriptor(descriptor).c_str());
 }
 
 void LogEnemyDamageEvent(const EnemyDamageEvent& event) {
