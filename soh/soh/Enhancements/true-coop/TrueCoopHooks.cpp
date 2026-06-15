@@ -20,6 +20,7 @@ namespace {
 #define CVAR_TRUE_COOP_ENABLED CVAR_REMOTE("TrueCoop.Enabled")
 
 struct TrueCoopTrackedEnemyState {
+    uint32_t coOpId = 0;
     int16_t health = -1;
     int16_t params = 0;
     int16_t freezeTimer = 0;
@@ -35,6 +36,7 @@ struct TrueCoopTrackedEnemyState {
 };
 
 std::unordered_map<uintptr_t, TrueCoopTrackedEnemyState> sTrackedEnemyStates;
+uint32_t sNextCoOpEnemyId = 1;
 
 bool TrueCoop_IsEnabled() {
     return CVarGetInteger(CVAR_TRUE_COOP_ENABLED, 0) != 0;
@@ -60,6 +62,24 @@ int16_t TrueCoop_GetActorListIndex(Actor* actor) {
     return actor != nullptr ? GetActorListIndex(actor) : -1;
 }
 
+uint32_t TrueCoop_GetOrAssignCoOpId(Actor* actor) {
+    if (actor == nullptr) {
+        return 0;
+    }
+
+    const uintptr_t actorKey = reinterpret_cast<uintptr_t>(actor);
+    auto existingState = sTrackedEnemyStates.find(actorKey);
+
+    if (existingState != sTrackedEnemyStates.end()) {
+        return existingState->second.coOpId;
+    }
+
+    TrueCoopTrackedEnemyState state;
+    state.coOpId = sNextCoOpEnemyId++;
+    sTrackedEnemyStates[actorKey] = state;
+    return state.coOpId;
+}
+
 bool TrueCoop_HasTransformMovedEnough(Actor* actor, const TrueCoopTrackedEnemyState& state) {
     const float dx = actor->world.pos.x - state.positionX;
     const float dy = actor->world.pos.y - state.positionY;
@@ -80,6 +100,7 @@ void TrueCoop_LogActorDamage(Actor* actor, int16_t hpBefore, int16_t hpAfter) {
     }
 
     TrueCoop_LogEnemyDamageEventC(
+        TrueCoop_GetOrAssignCoOpId(actor),
         TrueCoop_GetSceneId(),
         actor->room,
         actor->id,
@@ -100,6 +121,7 @@ void TrueCoop_LogActorDamage(Actor* actor, int16_t hpBefore, int16_t hpAfter) {
 
 void TrueCoop_LogActorTransform(Actor* actor) {
     TrueCoop_LogEnemyTransformEventC(
+        TrueCoop_GetOrAssignCoOpId(actor),
         TrueCoop_GetSceneId(),
         actor->room,
         actor->id,
@@ -120,6 +142,7 @@ void TrueCoop_LogActorTransform(Actor* actor) {
 
 void TrueCoop_LogActorState(Actor* actor) {
     TrueCoop_LogEnemyStateEventC(
+        TrueCoop_GetOrAssignCoOpId(actor),
         TrueCoop_GetSceneId(),
         actor->room,
         actor->id,
@@ -139,8 +162,9 @@ void TrueCoop_LogActorState(Actor* actor) {
         actor->bgCheckFlags);
 }
 
-TrueCoopTrackedEnemyState TrueCoop_BuildTrackedState(Actor* actor) {
+TrueCoopTrackedEnemyState TrueCoop_BuildTrackedState(Actor* actor, uint32_t coOpId) {
     TrueCoopTrackedEnemyState state;
+    state.coOpId = coOpId;
     state.health = actor->colChkInfo.health;
     state.params = actor->params;
     state.freezeTimer = actor->freezeTimer;
@@ -156,6 +180,18 @@ TrueCoopTrackedEnemyState TrueCoop_BuildTrackedState(Actor* actor) {
     return state;
 }
 
+void TrueCoop_AssignActorId(void* actorPtr) {
+    Actor* actor = static_cast<Actor*>(actorPtr);
+
+    if (!TrueCoop_IsSyncCandidateActor(actor)) {
+        return;
+    }
+
+    const uint32_t coOpId = TrueCoop_GetOrAssignCoOpId(actor);
+    const uintptr_t actorKey = reinterpret_cast<uintptr_t>(actor);
+    sTrackedEnemyStates[actorKey] = TrueCoop_BuildTrackedState(actor, coOpId);
+}
+
 void TrueCoop_TrackActorState(void* actorPtr) {
     Actor* actor = static_cast<Actor*>(actorPtr);
 
@@ -166,10 +202,11 @@ void TrueCoop_TrackActorState(void* actorPtr) {
     }
 
     const uintptr_t actorKey = reinterpret_cast<uintptr_t>(actor);
+    const uint32_t coOpId = TrueCoop_GetOrAssignCoOpId(actor);
     auto existingState = sTrackedEnemyStates.find(actorKey);
 
     if (existingState == sTrackedEnemyStates.end()) {
-        sTrackedEnemyStates[actorKey] = TrueCoop_BuildTrackedState(actor);
+        sTrackedEnemyStates[actorKey] = TrueCoop_BuildTrackedState(actor, coOpId);
         TrueCoop_LogActorState(actor);
         TrueCoop_LogActorTransform(actor);
         return;
@@ -194,7 +231,7 @@ void TrueCoop_TrackActorState(void* actorPtr) {
         previous.lastTransformFrame = currentFrame;
     }
 
-    previous = TrueCoop_BuildTrackedState(actor);
+    previous = TrueCoop_BuildTrackedState(actor, coOpId);
 }
 
 void TrueCoop_LogActorKill(void* actorPtr) {
@@ -207,6 +244,7 @@ void TrueCoop_LogActorKill(void* actorPtr) {
     }
 
     TrueCoop_LogEnemyKillEventC(
+        TrueCoop_GetOrAssignCoOpId(actor),
         TrueCoop_GetSceneId(),
         actor->room,
         actor->id,
@@ -233,6 +271,7 @@ void TrueCoop_UntrackActor(void* actorPtr) {
 }
 
 void RegisterTrueCoopHooks() {
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnActorSpawn>(TrueCoop_AssignActorId);
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnActorUpdate>(TrueCoop_TrackActorState);
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnActorKill>(TrueCoop_LogActorKill);
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnActorDestroy>(TrueCoop_UntrackActor);
