@@ -1,3 +1,4 @@
+#include "TrueCoop.h"
 #include "TrueCoopBridge.h"
 
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
@@ -36,7 +37,6 @@ struct TrueCoopTrackedEnemyState {
 };
 
 std::unordered_map<uintptr_t, TrueCoopTrackedEnemyState> sTrackedEnemyStates;
-uint32_t sNextCoOpEnemyId = 1;
 
 bool TrueCoop_IsEnabled() {
     return CVarGetInteger(CVAR_TRUE_COOP_ENABLED, 0) != 0;
@@ -62,22 +62,38 @@ int16_t TrueCoop_GetActorListIndex(Actor* actor) {
     return actor != nullptr ? GetActorListIndex(actor) : -1;
 }
 
+uint64_t TrueCoop_GetActorKey(Actor* actor) {
+    return reinterpret_cast<uint64_t>(actor);
+}
+
+TrueCoop::EnemyIdentityDescriptor TrueCoop_BuildIdentityDescriptor(Actor* actor) {
+    TrueCoop::EnemyIdentityDescriptor descriptor;
+    descriptor.sceneId = TrueCoop_GetSceneId();
+    descriptor.roomId = actor->room;
+    descriptor.actorId = actor->id;
+    descriptor.actorCategory = actor->category;
+    descriptor.actorParams = actor->params;
+    descriptor.actorListIndex = TrueCoop_GetActorListIndex(actor);
+    descriptor.spawnPositionX = actor->world.pos.x;
+    descriptor.spawnPositionY = actor->world.pos.y;
+    descriptor.spawnPositionZ = actor->world.pos.z;
+    return descriptor;
+}
+
 uint32_t TrueCoop_GetOrAssignCoOpId(Actor* actor) {
     if (actor == nullptr) {
         return 0;
     }
 
-    const uintptr_t actorKey = reinterpret_cast<uintptr_t>(actor);
-    auto existingState = sTrackedEnemyStates.find(actorKey);
+    const uint64_t actorKey = TrueCoop_GetActorKey(actor);
+    uint32_t localId = TrueCoop::GetLocalId(actorKey);
 
-    if (existingState != sTrackedEnemyStates.end()) {
-        return existingState->second.coOpId;
+    if (localId == 0) {
+        localId = TrueCoop::AssignLocalId(actorKey, TrueCoop_BuildIdentityDescriptor(actor));
+        TrueCoop::LogEnemyIdentityRequest(actorKey, localId, TrueCoop_BuildIdentityDescriptor(actor));
     }
 
-    TrueCoopTrackedEnemyState state;
-    state.coOpId = sNextCoOpEnemyId++;
-    sTrackedEnemyStates[actorKey] = state;
-    return state.coOpId;
+    return TrueCoop::GetSharedId(actorKey);
 }
 
 bool TrueCoop_HasTransformMovedEnough(Actor* actor, const TrueCoopTrackedEnemyState& state) {
@@ -267,7 +283,9 @@ void TrueCoop_UntrackActor(void* actorPtr) {
         return;
     }
 
+    const uint64_t actorKey = TrueCoop_GetActorKey(actor);
     sTrackedEnemyStates.erase(reinterpret_cast<uintptr_t>(actor));
+    TrueCoop::ReleaseId(actorKey);
 }
 
 void RegisterTrueCoopHooks() {
