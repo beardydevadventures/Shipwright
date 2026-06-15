@@ -31,12 +31,19 @@ struct EnemyDamageEvent {
     bool died = false;
 };
 
+struct EnemyKillEvent {
+    ActorIdentity enemy;
+    int16_t hpAtKill = -1;
+};
+
 FeatureState GetFeatureState();
 bool IsDebugEnabled();
 void SetFeatureState(FeatureState state);
 
 std::string DescribeActorIdentity(const ActorIdentity& identity);
 std::string DescribeEnemyDamageEvent(const EnemyDamageEvent& event);
+std::string DescribeEnemyKillEvent(const EnemyKillEvent& event);
 void LogEnemyDamageEvent(const EnemyDamageEvent& event);
+void LogEnemyKillEvent(const EnemyKillEvent& event);
 
 } // namespace TrueCoop
